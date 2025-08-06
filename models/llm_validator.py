@@ -76,37 +76,27 @@ class LLMValidator:
         predicted_style = fashion_clip_analysis.get('style', 'unknown')
         confidence = fashion_clip_analysis.get('confidence', 0.0)
         
-        prompt = f"""You are a fashion expert validating product image analysis. Compare what an AI vision model detected in an image versus what the product actually is.
+        prompt = f"""Product: "{title}" 
+Categories: {category_hints}
+Colors: {color_hints}
+Analysis: {predicted_category} {predicted_color}
 
-PRODUCT INFORMATION:
-- Title: "{title}"
-- Brand: {brand}
-- Description: "{description[:200]}..."
-- URL categories: {category_hints or 'none'}
-- URL colors: {color_hints or 'none'}
+STRICT VALIDATION:
+1. Category must match exactly: {predicted_category} vs {category_hints}
+2. Color must be compatible: {predicted_color} vs {color_hints}
 
-IMAGE ANALYSIS (by Fashion-CLIP):
-- Detected category: {predicted_category}
-- Detected color: {predicted_color}
-- Detected style: {predicted_style}
-- AI confidence: {confidence:.2f}
+EXAMPLES:
+- shirt vs shirt = YES, shirt vs pants = NO, shirt vs dress = NO
+- blue vs blue = YES, blue vs navy = YES, red vs blue = NO
 
-TASK: Determine if the image analysis matches the product description.
+If category OR color doesn't match: MATCH=NO, CONFIDENCE=0.1-0.3
+Only if BOTH match: MATCH=YES, CONFIDENCE=0.7-0.9
 
-Validation rules:
-1. Category must match exactly (shirt vs shirt ✓, shirt vs pants ✗)
-2. Color should be compatible (rose/pink are similar ✓, black/white are different ✗)
-3. Minor style differences are acceptable
-4. Brand context matters (luxury vs casual brands)
-
-Respond in this EXACT format:
 MATCH: [YES/NO]
 CONFIDENCE: [0.0-1.0]
 CATEGORY_MATCH: [YES/NO] 
 COLOR_MATCH: [YES/NO]
-REASON: [brief explanation]
-
-Response:"""
+REASON: [brief explanation]"""
 
         return prompt
     
@@ -115,16 +105,17 @@ Response:"""
         
         # Prepare the messages for chat format
         messages = [
-            {"role": "system", "content": "You are a precise fashion validation expert. Follow the exact response format requested."},
+            {"role": "system", "content": "You are a precise fashion validation expert. Respond directly in the exact format requested."},
             {"role": "user", "content": prompt}
         ]
         
-        # Apply chat template (Qwen3 format)
+        # Apply chat template (Qwen3 format) with thinking disabled
         try:
             text = self.tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
-                add_generation_prompt=True
+                add_generation_prompt=True,
+                enable_thinking=False  # Disable thinking mode for direct responses
             )
         except Exception as e:
             print(f"Chat template error: {e}, using simple format")
@@ -173,6 +164,9 @@ Response:"""
             color_pattern = r'COLOR_MATCH:\s*(YES|NO|True|False|yes|no)'
             reason_pattern = r'REASON:\s*(.+?)(?:\n\n|$)'
             
+            # Debug: Print the response for analysis
+            print(f"DEBUG - Full LLM Response: {response}")
+            
             # Parse each field with better handling
             if match := re.search(match_pattern, response, re.IGNORECASE):
                 match_text = match.group(1).upper()
@@ -207,8 +201,18 @@ Response:"""
                     result['overall_match'] = True
                     result['category_match'] = True
                     result['color_match'] = True
-                    result['confidence'] = 0.7
+                    result['confidence'] = 0.7  # Higher confidence for inferred matches
                     result['reason'] = "Inferred positive match from response content"
+                elif 'no' in response_lower or 'not' in response_lower or 'mismatch' in response_lower:
+                    result['overall_match'] = False
+                    result['category_match'] = False  
+                    result['color_match'] = False
+                    result['confidence'] = 0.4  # Lower confidence for inferred non-matches
+                    result['reason'] = "Inferred negative match from response content"
+                else:
+                    # Completely unclear response
+                    result['confidence'] = 0.3  # Very low confidence for unclear responses
+                    result['reason'] = "Unclear LLM response, defaulting to low confidence"
             
         except Exception as e:
             print(f"Error parsing LLM response: {e}")
@@ -235,28 +239,75 @@ Response:"""
             if keyword in title or keyword in description:
                 title_categories.append(keyword)
         
-        # Check category match
+        # Check category match with confidence calculation
         category_match = False
+        category_match_strength = 0.0
+        
         if category_hints:
-            category_match = predicted_category in category_hints
+            if predicted_category in category_hints:
+                category_match = True
+                category_match_strength = 1.0  # Exact match
+            elif any(hint in predicted_category for hint in category_hints):
+                category_match = True
+                category_match_strength = 0.8  # Partial match (increased from 0.7)
+            elif any(predicted_category in hint for hint in category_hints):
+                category_match = True
+                category_match_strength = 0.7  # Reverse partial match
         elif title_categories:
-            category_match = predicted_category in title_categories or any(cat in predicted_category for cat in title_categories)
+            if predicted_category in title_categories:
+                category_match = True
+                category_match_strength = 0.95  # Strong match from title (increased from 0.9)
+            elif any(cat in predicted_category for cat in title_categories):
+                category_match = True
+                category_match_strength = 0.7  # Partial match from title (increased from 0.6)
+            elif any(predicted_category in cat for cat in title_categories):
+                category_match = True
+                category_match_strength = 0.65  # Reverse partial match
         else:
             category_match = True  # No strong category signal, assume OK
+            category_match_strength = 0.6  # Neutral confidence (increased from 0.5)
         
-        # Color validation
+        # Color validation with confidence
         color_hints = [color.lower() for color in context.get('color_hints', [])]
-        color_match = True  # Default to True for colors
+        color_match = False  # Default to False for colors - be more strict
+        color_match_strength = 0.3  # Default low confidence
         
         if color_hints:
-            # Check if predicted color is compatible with hints
-            color_match = predicted_color in color_hints or any(hint in predicted_color for hint in color_hints)
+            if predicted_color in color_hints:
+                color_match = True
+                color_match_strength = 1.0  # Exact color match
+            elif any(hint in predicted_color for hint in color_hints):
+                color_match = True
+                color_match_strength = 0.85  # Partial color match
+            elif any(predicted_color in hint for hint in color_hints):
+                color_match = True
+                color_match_strength = 0.8  # Reverse partial match
+            else:
+                color_match = False
+                color_match_strength = 0.2  # Color mismatch
+        else:
+            # No color hints available, be conservative
+            color_match = False
+            color_match_strength = 0.4
         
-        # Overall validation
+        # Calculate overall confidence based on match quality
         overall_match = category_match and color_match
-        confidence = 0.8 if overall_match else 0.3
         
-        reason = f"Rule-based: Category {'✓' if category_match else '✗'}, Color {'✓' if color_match else '✗'}"
+        if overall_match:
+            # High confidence if both category and color match well
+            confidence = (category_match_strength + color_match_strength) / 2.0
+            # Boost confidence for good matches - allow higher scores
+            confidence = max(0.7, min(0.98, confidence))  # Clamp between 0.7-0.98
+            
+            # Additional boost for perfect matches
+            if category_match_strength >= 0.9 and color_match_strength >= 0.8:
+                confidence = min(0.98, confidence + 0.05)  # Small boost for near-perfect matches
+        else:
+            # Much lower confidence for mismatches - be more strict
+            confidence = (category_match_strength + color_match_strength) / 6.0  # Reduced from 4.0
+            confidence = max(0.05, min(0.25, confidence))  # Clamp between 0.05-0.25 (reduced from 0.1-0.4)
+        
+        reason = f"Rule-based: Category {'✓' if category_match else '✗'} ({category_match_strength:.1f}), Color {'✓' if color_match else '✗'} ({color_match_strength:.1f})"
         
         return {
             'overall_match': overall_match,
@@ -283,8 +334,18 @@ Response:"""
             fashion_clip_confidence = fashion_clip_analysis.get('confidence', 0.5)
             llm_confidence = llm_validation.get('confidence', 0.5)
             
-            # Weighted final score (LLM validation is more important)
-            final_score = (llm_confidence * 0.7) + (fashion_clip_confidence * 0.3)
+            # Adaptive weighting based on confidence levels
+            if fashion_clip_confidence > 0.8:
+                # If Fashion-CLIP is very confident, give it more weight
+                final_score = (llm_confidence * 0.6) + (fashion_clip_confidence * 0.4)
+            elif llm_validation.get('overall_match', False):
+                # If LLM validates as match, boost the score
+                final_score = (llm_confidence * 0.7) + (fashion_clip_confidence * 0.3)
+                # Additional boost for validated matches
+                final_score = min(1.0, final_score + 0.1)
+            else:
+                # Standard weighting
+                final_score = (llm_confidence * 0.7) + (fashion_clip_confidence * 0.3)
             
             validated_images.append({
                 **img_data,
