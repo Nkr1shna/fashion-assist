@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import json
 from models.fashion_clip import FashionCLIP
+from models.llm_validator import LLMValidator
 from utils.scraper import SimpleWebScraper
 
 # Configure page
@@ -16,6 +17,11 @@ st.set_page_config(
 @st.cache_resource
 def load_fashion_clip():
     return FashionCLIP()
+
+# Initialize LLM Validator (cached)
+@st.cache_resource
+def load_llm_validator():
+    return LLMValidator()
 
 def main():
     st.title("👗 Fashion Assist - AI Shopping Companion")
@@ -110,9 +116,10 @@ def shopping_analysis():
     st.header("Analyze Shopping Item")
     st.write("Paste a shopping URL to analyze compatibility with your wardrobe")
     
-    # Initialize scraper and Fashion-CLIP
+    # Initialize scraper, Fashion-CLIP, and LLM validator
     scraper = SimpleWebScraper()
     fashion_clip = load_fashion_clip()
+    llm_validator = load_llm_validator()
     
     url = st.text_input("Shopping URL", placeholder="https://example.com/product", help="Paste a link to any product from popular shopping sites")
     
@@ -128,20 +135,78 @@ def shopping_analysis():
             
             with col1:
                 if product_data["images"]:
-                    # Download and display first image
-                    img_url = product_data["images"][0]
-                    temp_img_path = f"data/scraped/temp_product.jpg"
+                    # Download and validate images using Fashion-CLIP + LLM
+                    with st.spinner("Downloading images and running AI validation..."):
+                        validated_images = scraper.download_and_validate_images(product_data, fashion_clip, llm_validator)
                     
-                    with st.spinner("Downloading product image..."):
-                        downloaded_path = scraper.download_image(img_url, temp_img_path)
-                    
-                    if downloaded_path:
-                        st.image(downloaded_path, width=250, caption="Product Image")
+                    if validated_images:
+                        # Show the best validated image
+                        best_image = validated_images[0]
+                        downloaded_path = best_image["path"]
+                        final_score = best_image.get("final_score", 0.5)
+                        llm_validation = best_image.get("llm_validation", {})
+                        
+                        st.image(downloaded_path, width=250, caption="Best Match Product Image")
+                        
+                        # Show LLM validation results
+                        if llm_validation.get("overall_match", False):
+                            st.success(f"✅ LLM Verified Match ({final_score:.1%} confidence)")
+                        else:
+                            st.error(f"❌ LLM Detected Mismatch ({final_score:.1%} confidence)")
+                        
+                        # Show detailed validation info
+                        with st.expander("🔍 Validation Details"):
+                            st.write(f"**LLM Reasoning:** {llm_validation.get('reason', 'No reason provided')}")
+                            st.write(f"**Category Match:** {'✅' if llm_validation.get('category_match', False) else '❌'}")
+                            st.write(f"**Color Match:** {'✅' if llm_validation.get('color_match', False) else '❌'}")
+                            st.write(f"**LLM Confidence:** {llm_validation.get('confidence', 0):.1%}")
+                            
+                            # Show Fashion-CLIP analysis
+                            analysis = best_image.get("analysis", {})
+                            if analysis:
+                                st.write("**Fashion-CLIP Detected:**")
+                                st.write(f"- Category: {analysis.get('category', 'unknown')}")
+                                st.write(f"- Color: {analysis.get('color', 'unknown')}")
+                                st.write(f"- Style: {analysis.get('style', 'unknown')}")
+                        
+                        # Show other candidates if available
+                        valid_alternatives = [img for img in validated_images[1:] if img.get("is_valid", False)]
+                        if valid_alternatives:
+                            with st.expander(f"View {len(valid_alternatives)} other valid images"):
+                                for i, img_data in enumerate(valid_alternatives, 1):
+                                    col_img, col_info, col_action = st.columns([1, 2, 1])
+                                    with col_img:
+                                        st.image(img_data["path"], width=100)
+                                    with col_info:
+                                        score = img_data.get("final_score", 0)
+                                        llm_val = img_data.get("llm_validation", {})
+                                        st.write(f"**Image {i+1}** - Score: {score:.1%}")
+                                        st.write(f"Reason: {llm_val.get('reason', 'No reason')[:50]}...")
+                                    with col_action:
+                                        if st.button(f"Use This", key=f"use_img_{i}"):
+                                            downloaded_path = img_data["path"]
+                                            st.rerun()
+                        
+                        # Show rejected images
+                        rejected_images = [img for img in validated_images if not img.get("is_valid", True)]
+                        if rejected_images:
+                            with st.expander(f"⚠️ {len(rejected_images)} images rejected by LLM"):
+                                for i, img_data in enumerate(rejected_images, 1):
+                                    col_img, col_info = st.columns([1, 3])
+                                    with col_img:
+                                        st.image(img_data["path"], width=80)
+                                    with col_info:
+                                        llm_val = img_data.get("llm_validation", {})
+                                        st.write(f"**Rejected Image {i}**")
+                                        st.write(f"Reason: {llm_val.get('reason', 'Unknown reason')}")
+                                        analysis = img_data.get("analysis", {})
+                                        if analysis:
+                                            st.write(f"Detected: {analysis.get('category', '?')} - {analysis.get('color', '?')}")
                     else:
-                        st.warning("Could not download product image")
+                        st.error("Could not download or validate any product images")
                         downloaded_path = None
                 else:
-                    st.warning("No product images found")
+                    st.warning("No product images found in webpage")
                     downloaded_path = None
             
             with col2:
@@ -150,25 +215,58 @@ def shopping_analysis():
                 st.write(f"**Price:** {product_data['price']}")
                 st.write(f"**Description:** {product_data['description']}")
                 
+                # Show extracted context
+                if product_data.get("context"):
+                    context = product_data["context"]
+                    st.write(f"**Brand:** {context['brand']}")
+                    
+                    if context.get("category_hints"):
+                        st.write(f"**URL Category Hints:** {', '.join(context['category_hints'])}")
+                    if context.get("color_hints"):
+                        st.write(f"**Color Hints:** {', '.join(context['color_hints'])}")
+                    if context.get("material_hints"):
+                        st.write(f"**Materials:** {', '.join(context['material_hints'])}")
+                
                 # Analyze with Fashion-CLIP if image was downloaded
                 if downloaded_path:
                     with st.spinner("Analyzing item category with AI..."):
                         analysis = fashion_clip.categorize_item(downloaded_path)
                     
                     st.divider()
-                    st.subheader("AI Analysis")
+                    st.subheader("AI Analysis vs Context")
                     
                     # Display analysis in a nice format
                     col2a, col2b, col2c = st.columns(3)
                     
                     with col2a:
-                        st.metric("Category", analysis['category'].title())
+                        ai_category = analysis['category'].title()
+                        st.metric("AI Category", ai_category)
+                        # Show if it matches context
+                        context_cats = product_data.get("context", {}).get("category_hints", [])
+                        if context_cats and analysis['category'].lower() in context_cats:
+                            st.success("✅ Matches context")
+                        elif context_cats:
+                            st.warning("⚠️ Different from context")
                     
                     with col2b:
-                        st.metric("Color", analysis['color'].title())
+                        ai_color = analysis['color'].title()
+                        st.metric("AI Color", ai_color)
+                        # Show if it matches context
+                        context_colors = product_data.get("context", {}).get("color_hints", [])
+                        if context_colors and analysis['color'].lower() in context_colors:
+                            st.success("✅ Matches context")
+                        elif context_colors:
+                            st.warning("⚠️ Different from context")
                     
                     with col2c:
-                        st.metric("Style", analysis['style'].title())
+                        ai_style = analysis['style'].title()
+                        st.metric("AI Style", ai_style)
+                        # Show if it matches context
+                        context_styles = product_data.get("context", {}).get("style_hints", [])
+                        if context_styles and analysis['style'].lower() in context_styles:
+                            st.success("✅ Matches context")
+                        elif context_styles:
+                            st.info("ℹ️ No style context")
                     
                     # Confidence score
                     st.write("**AI Confidence:**")

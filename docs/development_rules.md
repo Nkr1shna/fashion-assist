@@ -50,6 +50,10 @@ uv run python -m module
 
 # For Streamlit apps
 uv run streamlit run app.py
+
+# ⚠️ IMPORTANT: Never use global environments
+# ❌ DON'T: source $HOME/.local/bin/env && python script.py
+# ✅ DO: uv run python script.py (uses project .venv automatically)
 ```
 
 #### For Virtual Environment Management

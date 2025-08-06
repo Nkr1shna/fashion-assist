@@ -71,12 +71,14 @@ uv run streamlit run app.py
   - Determines style (casual, formal, business, sporty, etc.)
   - Calculates compatibility between items
 
-### Web Scraping Engine
-- **Purpose**: Extract product information from shopping URLs
+### Web Scraping Engine + LLM Validation
+- **Purpose**: Extract product information from shopping URLs with AI validation
 - **Capabilities**:
   - Multi-site support with adaptive selectors
   - Image downloading and processing
   - Price and description extraction
+  - **Qwen3-0.6B LLM validation** to ensure images match descriptions
+  - Semantic mismatch detection (rejects wrong categories)
   - Error handling for blocked requests
 
 ## 📊 Data Storage
