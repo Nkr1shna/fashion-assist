@@ -197,6 +197,11 @@ class SimpleWebScraper:
             '[class*="product"] img',
             '[id*="product"] img',
             
+            # A Kind of Guise specific selectors
+            '[class*="media"] img',  # Their media gallery
+            '[class*="gallery"] img',  # Gallery images
+            '[class*="image"] img',   # Image containers
+            
             # Medium priority - common e-commerce patterns
             '.hero img',
             '.main-image img',
@@ -204,11 +209,12 @@ class SimpleWebScraper:
             'picture img',
             '.carousel img',
             '.slider img',
+            'main img',  # More permissive for modern layouts
+            'article img',  # More permissive for modern layouts
             
             # Shopify/common platform specific
             '[data-zoom] img',
-            '.featured-image img',
-            '[class*="media"] img'
+            '.featured-image img'
         ]
         
         # Try priority selectors first
@@ -218,19 +224,19 @@ class SimpleWebScraper:
                 src = self._get_image_src(img, base_url)
                 if src and self._is_product_image(img, src, product_title):
                     images.append(src)
-                    if len(images) >= 5:  # Get more candidates for validation
+                    if len(images) >= 10:  # Get more candidates for validation
                         break
-            if len(images) >= 5:
+            if len(images) >= 10:
                 break
         
-        # If still no images, try broader search with stricter filtering
-        if len(images) < 2:
+        # If still no images, try broader search with relaxed filtering
+        if len(images) < 3:
             all_imgs = soup.find_all('img')
             for img in all_imgs:
                 src = self._get_image_src(img, base_url)
-                if src and self._is_product_image(img, src, product_title, strict=True):
+                if src and self._is_product_image(img, src, product_title, strict=False):
                     images.append(src)
-                    if len(images) >= 5:
+                    if len(images) >= 10:
                         break
         
         # Remove duplicates while preserving order
@@ -238,12 +244,19 @@ class SimpleWebScraper:
         seen_urls = set()
         for img_url in images:
             # Normalize URL for comparison (remove query params for deduplication)
+            # But keep the highest quality version (with width parameter)
             clean_url = img_url.split('?')[0]
             if clean_url not in seen_urls:
                 seen_urls.add(clean_url)
-                unique_images.append(img_url)
+                # Prefer URLs with width parameter for better quality
+                if 'width=' in img_url:
+                    # Replace any existing entry with this higher quality version
+                    unique_images = [url for url in unique_images if not url.split('?')[0] == clean_url]
+                    unique_images.append(img_url)
+                else:
+                    unique_images.append(img_url)
         
-        return unique_images[:3]  # Return top 3 candidates
+        return unique_images[:8]  # Return up to 8 candidates instead of 3
     
     def _get_image_src(self, img, base_url):
         """Extract and normalize image source URL"""
@@ -275,30 +288,27 @@ class SimpleWebScraper:
         else:
             class_name = str(class_name).lower()
         
-        # Size filtering - product images are usually larger
+        # More relaxed size filtering - product images are usually larger
         width = img.get('width')
         height = img.get('height')
         if width and height:
             try:
                 w, h = int(width), int(height)
-                if w < 150 or h < 150:  # Too small for product image
+                if w < 100 or h < 100:  # More relaxed than 150
                     return False
-                if w > 2000 or h > 2000:  # Probably too large/banner
+                if w > 3000 or h > 3000:  # More relaxed than 2000
                     return False
             except:
                 pass
         
-        # Exclude obvious non-product images
+        # Exclude only the most obvious non-product images
         exclude_patterns = [
-            'logo', 'icon', 'badge', 'banner', 'header', 'footer',
-            'social', 'facebook', 'instagram', 'twitter', 'nav',
-            'menu', 'search', 'cart', 'checkout', 'payment',
-            'shipping', 'return', 'warranty', 'care', 'size-guide'
+            'logo', 'icon', 'facebook', 'instagram', 'twitter', 
+            'nav', 'menu', 'cart', 'checkout'
         ]
         
         exclude_in_url = [
-            'logo', 'icon', 'badge', 'banner', 'social', 'nav',
-            'menu', 'header', 'footer', 'thumb', 'avatar'
+            'logo', 'icon', 'nav', 'menu', 'thumb', 'avatar'
         ]
         
         # Check for exclusion patterns
@@ -318,7 +328,7 @@ class SimpleWebScraper:
             # Must have some product-related indicators
             product_indicators = [
                 'product', 'item', 'main', 'primary', 'hero',
-                'gallery', 'zoom', 'large', 'detail'
+                'gallery', 'zoom', 'large', 'detail', 'media'
             ]
             
             has_product_indicator = any(
@@ -336,6 +346,7 @@ class SimpleWebScraper:
             'hero' in text_to_check,
             'primary' in text_to_check,
             'gallery' in text_to_check,
+            'media' in text_to_check,
             any(word in alt_text for word in product_title.split() if len(word) > 3),
             'zoom' in class_name,
             'featured' in class_name
@@ -344,6 +355,7 @@ class SimpleWebScraper:
         # Boost score if we have positive signals
         score = sum(positive_signals)
         
+        # Be more permissive in non-strict mode
         return score > 0 or not strict
     
     def _extract_description(self, soup):
@@ -419,17 +431,21 @@ class SimpleWebScraper:
         if not product_data.get("images"):
             return []
         
-        # Create directory for this product
+        # Create downloads directory
+        downloads_path = "downloads"
+        os.makedirs(downloads_path, exist_ok=True)
+        
+        # Create a unique identifier for this product's images
         import hashlib
         url_hash = hashlib.md5(product_data["url"].encode()).hexdigest()[:8]
-        base_path = f"data/scraped/{url_hash}"
-        os.makedirs(base_path, exist_ok=True)
         
         # First pass: Download images and get Fashion-CLIP analysis
         images_with_analysis = []
         
         for i, img_url in enumerate(product_data["images"]):
-            img_path = os.path.join(base_path, f"image_{i}.jpg")
+            # Save to downloads folder with product identifier
+            img_filename = f"{url_hash}_image_{i}.jpg"
+            img_path = os.path.join(downloads_path, img_filename)
             
             # Download image
             downloaded_path = self.download_image(img_url, img_path)

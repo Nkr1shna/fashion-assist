@@ -1,159 +1,183 @@
 # Fashion Assist: AI-Powered Shopping Companion
 
-> **Status: Feature 2 (Shopping Analysis) ✅ IMPLEMENTED**
-
-A proof of concept that demonstrates how AI models can help users visualize clothing combinations by analyzing their wardrobe and shopping items.
+An AI-powered fashion analysis tool that helps users analyze their wardrobe and make informed shopping decisions using computer vision and natural language processing.
 
 ## 🚀 Quick Start
 
-**⚠️ Important: Always use `uv` instead of `pip`**
+### Prerequisites
+- Python 3.9+
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### Installation
 
 ```bash
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env
 
 # Install dependencies
-uv add streamlit torch transformers requests beautifulsoup4
+uv sync
 
 # Run the application
 uv run streamlit run app.py
 ```
 
-## ✨ Features Implemented
+## ✨ Features
 
-### ✅ Feature 1: Wardrobe Upload & Auto-Tagging
-- Upload multiple clothing images
+### 📸 Wardrobe Management
+- Upload and organize clothing images
 - AI-powered automatic categorization (category, color, style)
-- Confidence scoring for AI predictions
-- Save wardrobe items with metadata
-- Visual wardrobe summary dashboard
+- Confidence scoring for predictions
+- Digital wardrobe dashboard
 
-### ✅ Feature 2: Shopping Analysis ⭐ **NEW**
-- **Paste any shopping URL** to analyze products
-- **Automatic product extraction** (title, price, description, images)
-- **AI-powered categorization** using Fashion-CLIP
-- **Wardrobe compatibility scoring** - see how well new items match your existing clothes
-- **Color-coded compatibility ratings** (Excellent >70%, Good >50%)
-- **Shopping history** - review previously analyzed items
-- **Smart image downloading** - automatically save product images
-- **Error handling** - robust fallback for different site structures
+### 🛍️ Shopping Analysis
+- Analyze products from any shopping URL
+- Automatic product information extraction
+- AI-powered categorization using Fashion-CLIP
+- Compatibility scoring with existing wardrobe items
+- LLM-enhanced category generation
 
-### 🔜 Feature 3: Outfit Generation (Coming Soon)
-- Generate outfit combinations with AI
-- Visual outfit mockups
-- Style recommendations
+### 🔄 Analysis Pipeline
+- Complete automated analysis workflow
+- Command-line interface for batch processing
+- Enhanced Fashion-CLIP analysis with custom categories
+- Semantic validation with reasoning
+- Automatic image optimization and cleanup
 
-## 🛒 How to Use Feature 2: Shopping Analysis
+## 📋 Usage
 
-1. **Run the app**: `uv run streamlit run app.py`
-2. **Go to "Analyze Shopping" tab**
-3. **Paste any product URL** (e.g., from Zara, H&M, Amazon, etc.)
-4. **Click "🔍 Analyze Item"**
-5. **View results**:
-   - Product information (title, price, description)
-   - AI analysis (category, color, style)
-   - Compatibility scores with your wardrobe items
-   - Overall compatibility assessment
-
-### Supported Shopping Sites
-- **Any e-commerce site** with standard HTML structure
-- Automatically adapts to different layouts
-- Robust extraction for title, price, images, and descriptions
-
-## 🤖 AI Models Used
-
-### Fashion-CLIP
-- **Purpose**: Auto-categorization and compatibility scoring
-- **Capabilities**: 
-  - Categorizes clothing items (shirt, pants, dress, shoes, etc.)
-  - Identifies colors (black, white, blue, red, etc.)
-  - Determines style (casual, formal, business, sporty, etc.)
-  - Calculates compatibility between items
-
-### Web Scraping Engine + LLM Validation
-- **Purpose**: Extract product information from shopping URLs with AI validation
-- **Capabilities**:
-  - Multi-site support with adaptive selectors
-  - Image downloading and processing
-  - Price and description extraction
-  - **Qwen3-0.6B LLM validation** to ensure images match descriptions
-  - Semantic mismatch detection (rejects wrong categories)
-  - Error handling for blocked requests
-
-## 📊 Data Storage
-
-### Local JSON Files
-```
-data/
-├── wardrobe_items.json    # Your uploaded wardrobe items
-├── shopping_items.json    # Analyzed shopping items  
-├── wardrobe/             # Uploaded clothing images
-└── scraped/              # Downloaded product images
-```
-
-## 🔧 Development Rules
-
-### ⚠️ IMPORTANT: Use `uv` Instead of `pip`
-
-**🚫 DON'T USE:**
+### Web Interface
 ```bash
-pip install package_name
-pip3 install package_name  
-```
-
-**✅ USE INSTEAD:**
-```bash
-uv add package_name
-uv run python script.py
 uv run streamlit run app.py
 ```
 
-**Why?** 
-- 10-100x faster than pip
-- Better dependency resolution
-- Modern Python project management
-- See `docs/development_rules.md` for complete guidelines
+1. Open the Streamlit app
+2. Go to "Upload Wardrobe" to add clothing items
+3. Use "Shopping Analysis" to analyze product URLs
+4. View compatibility scores and AI analysis
 
-## 🏗 Architecture
+### Command Line Pipeline
+```bash
+# Analyze a fashion product URL
+python run_pipeline.py "https://example.com/product-url"
+
+# Test the pipeline
+python test_pipeline.py
+```
+
+### Python API
+```python
+from pipeline import FashionAnalysisPipeline
+
+pipeline = FashionAnalysisPipeline()
+results = pipeline.run_pipeline("https://fashion-url.com/product")
+
+if results['pipeline_success']:
+    print(f"Best image: {results['best_image_path']}")
+    print(f"Categories: {results['generated_categories']}")
+    print(f"Confidence: {results['best_image_analysis']['final_score']:.1%}")
+```
+
+### Example URLs for Testing
+- Zara: `https://www.zara.com/us/en/textured-knit-sweater-p05755160.html`
+- Uniqlo: `https://www.uniqlo.com/us/en/products/E460582-000`
+
+## 🏗️ Architecture
 
 ```
 fashion_assist/
-├── app.py                 # Main Streamlit application
+├── app.py                 # Streamlit web interface
+├── pipeline.py            # Complete analysis pipeline
+├── run_pipeline.py        # CLI interface
 ├── models/
-│   └── fashion_clip.py    # Fashion-CLIP wrapper for AI analysis
+│   ├── fashion_clip.py    # Fashion-CLIP model wrapper
+│   └── llm_validator.py   # LLM validation component
 ├── utils/
-│   └── scraper.py         # Web scraping utility ⭐ NEW
-├── data/                  # Local file storage
-└── docs/
-    └── development_rules.md # Development guidelines
+│   └── scraper.py         # Web scraping utilities
+└── data/                  # Local storage
+    ├── wardrobe/          # User wardrobe images
+    ├── scraped/           # Downloaded product images
+    └── pipeline_output/   # Analysis results
 ```
+
+### Pipeline Steps
+
+1. **Scrape**: Extract product title, description, price, and images
+2. **Generate**: Create specific categories using LLM analysis
+3. **Download**: Retrieve all product images
+4. **Analyze**: Process images with Fashion-CLIP using generated categories
+5. **Validate**: Use LLM to verify analysis accuracy
+6. **Optimize**: Keep only the best image, delete others
+7. **Save**: Store results in JSON format
+
+### Output Structure
+
+```
+data/pipeline_output/analysis_<hash>/
+├── best_image.jpg           # Highest confidence product image
+├── pipeline_results.json    # Complete analysis results
+└── (temporary files cleaned up automatically)
+```
+
+### Supported Sites
+
+The pipeline adapts to most e-commerce sites including:
+- Zara, H&M, Uniqlo
+- Amazon Fashion
+- Most standard e-commerce platforms
+
+## 🤖 AI Models
+
+- **Fashion-CLIP**: Product categorization and style analysis
+- **LLM Validator**: Semantic validation and category generation
+- **Web Scraper**: Multi-site product information extraction
 
 ## 🧪 Testing
 
-Feature 2 has been thoroughly tested:
-- ✅ Web scraper initialization
-- ✅ HTML parsing and extraction 
-- ✅ JSON storage operations
-- ✅ Directory structure validation
-- ✅ Integration with Fashion-CLIP
-- ✅ Streamlit UI functionality
+```bash
+# Run tests
+python tests/test_fashion_assist.py
 
-## 🎯 Next Steps
+# Test specific URL
+python run_pipeline.py "https://fashion-url.com/product"
+```
 
-1. **Try Feature 2**: Upload some wardrobe items, then analyze shopping URLs
-2. **Test compatibility**: See how well new items match your style
-3. **Build wardrobe**: Use compatibility scores to make informed purchases
-4. **Wait for Feature 3**: Outfit generation coming soon!
+## 🔧 Troubleshooting
 
-## 📝 Project Status
+**Model loading issues**: Ensure you have sufficient RAM (4GB+) and stable internet for model downloads.
 
-- [x] **Day 1-2**: ✅ Wardrobe Upload & Auto-Tagging  
-- [x] **Day 2-3**: ✅ Shopping Item Analysis ⭐ **COMPLETED**
-- [ ] **Day 3-5**: 🔜 Basic Outfit Generation
-- [ ] **Day 4**: 🔜 Integration & Polish
-- [ ] **Day 5**: 🔜 Demo Preparation
+**Scraping failures**: Some sites may block requests. Try different products or use the provided test URLs.
 
----
+**Image errors**: Ensure uploaded images are valid JPG/PNG files under 10MB.
 
-**🎉 Feature 2 is live! Start analyzing your shopping finds with AI-powered compatibility scoring!**
+**Pipeline failures**: The pipeline includes robust error handling for network failures, invalid URLs, missing images, and model failures. Failed analyses return detailed error information for debugging.
+
+## 📝 Development
+
+### Package Management
+**⚠️ Important**: Always use `uv` instead of `pip` for this project:
+
+```bash
+# ✅ Correct way
+uv add package_name
+uv run python script.py
+
+# ❌ Don't use
+pip install package_name
+python script.py
+```
+
+This ensures 10-100x faster installations and consistent dependency resolution.
+
+### Code Style
+This project uses Black for code formatting and follows PEP 8 guidelines.
+
+### Dependencies
+- Streamlit: Web interface
+- PyTorch + Transformers: AI model inference
+- OpenCLIP: Fashion-CLIP implementation
+- BeautifulSoup: Web scraping
+- Pillow: Image processing
+
+## 📄 License
+
+MIT License - see LICENSE file for details.
