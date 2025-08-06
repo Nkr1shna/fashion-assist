@@ -1,0 +1,58 @@
+{
+  "items": [
+    {
+      "filename": "black_jacket.jpg",
+      "image_path": "data/wardrobe/black_jacket.jpg",
+      "category": "jacket",
+      "color": "black",
+      "style": "modern",
+      "confidence": 0.85,
+      "uploaded_at": "2025-01-15"
+    },
+    {
+      "filename": "red_dress.jpg",
+      "image_path": "data/wardrobe/red_dress.jpg",
+      "category": "dress",
+      "color": "red",
+      "style": "elegant",
+      "confidence": 0.85,
+      "uploaded_at": "2025-01-15"
+    },
+    {
+      "filename": "yellow_tshirt.jpg",
+      "image_path": "data/wardrobe/yellow_tshirt.jpg",
+      "category": "t-shirt",
+      "color": "white",
+      "style": "minimalist",
+      "confidence": 0.85,
+      "uploaded_at": "2025-01-15"
+    },
+    {
+      "filename": "blue_jeans.jpg",
+      "image_path": "data/wardrobe/blue_jeans.jpg",
+      "category": "jeans",
+      "color": "blue",
+      "style": "streetwear",
+      "confidence": 0.85,
+      "uploaded_at": "2025-01-15"
+    },
+    {
+      "filename": "green_hoodie.jpg",
+      "image_path": "data/wardrobe/green_hoodie.jpg",
+      "category": "hoodie",
+      "color": "gray",
+      "style": "streetwear",
+      "confidence": 0.85,
+      "uploaded_at": "2025-01-15"
+    },
+    {
+      "filename": "white_shirt.jpg",
+      "image_path": "data/wardrobe/white_shirt.jpg",
+      "category": "t-shirt",
+      "color": "white",
+      "style": "minimalist",
+      "confidence": 0.85,
+      "uploaded_at": "2025-01-15"
+    }
+  ]
+}
