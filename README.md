@@ -1,255 +1,157 @@
-# Fashion Assist POC
-## AI-Powered Shopping Companion (1-Week School Project)
+# Fashion Assist: AI-Powered Shopping Companion
 
-A proof of concept demonstrating how multiple AI models can work together to help users make better clothing purchases by analyzing their wardrobe and generating outfit visualizations.
+> **Status: Feature 2 (Shopping Analysis) ✅ IMPLEMENTED**
 
-![Fashion Assist Demo](https://img.shields.io/badge/Status-POC-orange) ![Python](https://img.shields.io/badge/Python-3.9+-blue) ![Streamlit](https://img.shields.io/badge/Framework-Streamlit-red)
-
----
-
-## 🎯 Project Overview
-
-### What It Does
-- **📸 Wardrobe Digitization**: Upload clothing photos, get automatic AI categorization
-- **🛒 Shopping Analysis**: Paste shopping URLs, extract product info and compatibility scores  
-- **✨ Outfit Generation**: Create realistic outfit visualizations using AI image generation
-
-### AI Models Used
-- **Fashion-CLIP**: Fashion-specific vision-language model for categorization and compatibility
-- **FLUX Outfit Generator**: Text-to-image model specialized for fashion/clothing
-- **Web Scraping**: Custom scraper for extracting product data from shopping sites
-
----
+A proof of concept that demonstrates how AI models can help users visualize clothing combinations by analyzing their wardrobe and shopping items.
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- MacBook Pro M4 Pro (or similar with 48GB+ RAM)
-- Python 3.9+
-- **uv** (fast Python package manager) - Install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Internet connection for model downloads
-
-> **Why uv?** 10-100x faster than pip, better dependency resolution, modern Python tooling
-
-### Installation
+**⚠️ Important: Always use `uv` instead of `pip`**
 
 ```bash
-# Clone repository
-git clone <your-repo-url>
-cd fashion_assist_poc
-
-# Initialize project with uv (faster than pip/venv)
-uv init --python 3.11
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
 
 # Install dependencies
-uv add streamlit torch torchvision transformers diffusers accelerate
-uv add open-clip-torch Pillow opencv-python numpy
-uv add requests beautifulsoup4 selenium scikit-learn pandas
+uv add streamlit torch transformers requests beautifulsoup4
 
-# Create directory structure
-mkdir -p data/{wardrobe,scraped,generated}
-
-# Run application
+# Run the application
 uv run streamlit run app.py
 ```
 
-### First Run
-1. Open `http://localhost:8501` in your browser
-2. Upload 2-3 clothing photos in "Upload Wardrobe" tab
-3. Paste a shopping URL in "Analyze Shopping" tab
-4. Generate outfit in "Generate Outfit" tab
+## ✨ Features Implemented
 
----
-
-## 📁 Project Structure
-
-```
-fashion_assist_poc/
-├── app.py                     # Main Streamlit application
-├── models/
-│   ├── fashion_clip.py        # Fashion-CLIP wrapper for categorization
-│   └── outfit_gen.py          # FLUX outfit generation model
-├── utils/
-│   ├── scraper.py             # Web scraping for shopping sites
-│   └── file_manager.py        # Local file operations
-├── data/
-│   ├── wardrobe/              # User uploaded clothing images
-│   ├── scraped/               # Downloaded shopping item images  
-│   └── generated/             # AI generated outfit images
-├── docs/
-│   ├── fashion_assist_poc_spec.md    # Detailed project specification
-│   ├── implementation_guide.md       # Step-by-step implementation
-│   └── demo_script.md               # Demo presentation guide
-└── requirements.txt           # Python dependencies
-```
-
----
-
-## 🔧 Technical Details
-
-### Architecture
-```mermaid
-graph TB
-    UI[Streamlit UI] --> WM[Wardrobe Manager]
-    UI --> SA[Shopping Analyzer]  
-    UI --> OG[Outfit Generator]
-    
-    WM --> FC[Fashion-CLIP]
-    SA --> WS[Web Scraper]
-    SA --> FC
-    OG --> FLUX[FLUX Model]
-    
-    FC --> LS[Local Storage]
-    WS --> LS
-    FLUX --> LS
-```
-
-### Model Specifications
-- **Fashion-CLIP**: 600MB, ViT-B/32 architecture, fashion-specialized
-- **FLUX Outfit Generator**: ~12GB, text-to-image diffusion model
-- **Total Memory Usage**: ~30GB peak (fits comfortably in 48GB)
-
-### Performance
-- **Fashion-CLIP categorization**: ~500ms per image
-- **FLUX outfit generation**: ~30-45 seconds per image
-- **Web scraping**: ~2-5 seconds per URL
-
----
-
-## 🎨 Features
-
-### 1. Wardrobe Digitization
+### ✅ Feature 1: Wardrobe Upload & Auto-Tagging
 - Upload multiple clothing images
-- Automatic categorization (shirt, pants, dress, etc.)
-- Color and style detection
-- Digital wardrobe organization
+- AI-powered automatic categorization (category, color, style)
+- Confidence scoring for AI predictions
+- Save wardrobe items with metadata
+- Visual wardrobe summary dashboard
 
-### 2. Shopping Analysis
-- Paste any shopping URL
-- Extract product images and details
-- AI-powered compatibility scoring
-- Integration with existing wardrobe
+### ✅ Feature 2: Shopping Analysis ⭐ **NEW**
+- **Paste any shopping URL** to analyze products
+- **Automatic product extraction** (title, price, description, images)
+- **AI-powered categorization** using Fashion-CLIP
+- **Wardrobe compatibility scoring** - see how well new items match your existing clothes
+- **Color-coded compatibility ratings** (Excellent >70%, Good >50%)
+- **Shopping history** - review previously analyzed items
+- **Smart image downloading** - automatically save product images
+- **Error handling** - robust fallback for different site structures
 
-### 3. Outfit Generation
-- Select items from wardrobe + shopping
-- Choose style preferences (casual, formal, etc.)
-- Generate realistic outfit visualizations
-- Download generated images
+### 🔜 Feature 3: Outfit Generation (Coming Soon)
+- Generate outfit combinations with AI
+- Visual outfit mockups
+- Style recommendations
 
----
+## 🛒 How to Use Feature 2: Shopping Analysis
 
-## 🛠 Usage Examples
+1. **Run the app**: `uv run streamlit run app.py`
+2. **Go to "Analyze Shopping" tab**
+3. **Paste any product URL** (e.g., from Zara, H&M, Amazon, etc.)
+4. **Click "🔍 Analyze Item"**
+5. **View results**:
+   - Product information (title, price, description)
+   - AI analysis (category, color, style)
+   - Compatibility scores with your wardrobe items
+   - Overall compatibility assessment
 
-### Analyzing a Shopping Item
-```python
-# Example shopping URLs that work well:
-- H&M: https://www2.hm.com/en_us/productpage.0570006001.html
-- Zara: https://www.zara.com/us/en/basic-t-shirt-p00706460.html
-- Target: https://www.target.com/p/women-s-short-sleeve-t-shirt/
+### Supported Shopping Sites
+- **Any e-commerce site** with standard HTML structure
+- Automatically adapts to different layouts
+- Robust extraction for title, price, images, and descriptions
+
+## 🤖 AI Models Used
+
+### Fashion-CLIP
+- **Purpose**: Auto-categorization and compatibility scoring
+- **Capabilities**: 
+  - Categorizes clothing items (shirt, pants, dress, shoes, etc.)
+  - Identifies colors (black, white, blue, red, etc.)
+  - Determines style (casual, formal, business, sporty, etc.)
+  - Calculates compatibility between items
+
+### Web Scraping Engine
+- **Purpose**: Extract product information from shopping URLs
+- **Capabilities**:
+  - Multi-site support with adaptive selectors
+  - Image downloading and processing
+  - Price and description extraction
+  - Error handling for blocked requests
+
+## 📊 Data Storage
+
+### Local JSON Files
+```
+data/
+├── wardrobe_items.json    # Your uploaded wardrobe items
+├── shopping_items.json    # Analyzed shopping items  
+├── wardrobe/             # Uploaded clothing images
+└── scraped/              # Downloaded product images
 ```
 
-### Outfit Generation Process
-1. Upload wardrobe items (get auto-categorized)
-2. Analyze shopping item from URL
-3. Select 2-3 items for combination
-4. Choose style (casual/formal/business)
-5. Generate AI outfit visualization
+## 🔧 Development Rules
 
----
+### ⚠️ IMPORTANT: Use `uv` Instead of `pip`
 
-## 🎯 Demo Instructions
+**🚫 DON'T USE:**
+```bash
+pip install package_name
+pip3 install package_name  
+```
 
-### 5-Minute Demo Flow
-1. **Upload wardrobe** (30 seconds) - Show AI categorization
-2. **Analyze shopping URL** (90 seconds) - Show web scraping + compatibility
-3. **Generate outfit** (120 seconds) - Show AI image generation
-4. **Show results** (30 seconds) - Highlight generated outfit
+**✅ USE INSTEAD:**
+```bash
+uv add package_name
+uv run python script.py
+uv run streamlit run app.py
+```
 
-### Sample Data for Demo
-- Prepare 3-4 clothing photos
-- Test shopping URLs from major retailers
-- Pre-generate backup examples
+**Why?** 
+- 10-100x faster than pip
+- Better dependency resolution
+- Modern Python project management
+- See `docs/development_rules.md` for complete guidelines
 
-See [demo_script.md](docs/demo_script.md) for detailed presentation guide.
+## 🏗 Architecture
 
----
+```
+fashion_assist/
+├── app.py                 # Main Streamlit application
+├── models/
+│   └── fashion_clip.py    # Fashion-CLIP wrapper for AI analysis
+├── utils/
+│   └── scraper.py         # Web scraping utility ⭐ NEW
+├── data/                  # Local file storage
+└── docs/
+    └── development_rules.md # Development guidelines
+```
 
 ## 🧪 Testing
 
-### Manual Testing Checklist
-- [ ] Upload various clothing types
-- [ ] Test different shopping site URLs
-- [ ] Generate outfits with different styles
-- [ ] Verify file storage and retrieval
-- [ ] Check error handling
+Feature 2 has been thoroughly tested:
+- ✅ Web scraper initialization
+- ✅ HTML parsing and extraction 
+- ✅ JSON storage operations
+- ✅ Directory structure validation
+- ✅ Integration with Fashion-CLIP
+- ✅ Streamlit UI functionality
 
-### Known Limitations (POC)
-- Limited to major e-commerce sites
-- Basic outfit generation (no body type consideration)
-- Local storage only (no user accounts)
-- Simplified UI for demo purposes
+## 🎯 Next Steps
 
----
+1. **Try Feature 2**: Upload some wardrobe items, then analyze shopping URLs
+2. **Test compatibility**: See how well new items match your style
+3. **Build wardrobe**: Use compatibility scores to make informed purchases
+4. **Wait for Feature 3**: Outfit generation coming soon!
 
-## 📈 Future Improvements
+## 📝 Project Status
 
-### Short-term (1-2 weeks)
-- Support for more shopping sites
-- Improved outfit generation prompts
-- Better error handling and user feedback
-- Mobile-responsive design
-
-### Medium-term (1-2 months)
-- User accounts and persistent storage
-- Social features (sharing outfits)
-- Seasonal and weather recommendations
-- Integration with shopping carts
-
-### Long-term (3-6 months)
-- Body type and fit consideration
-- Video outfit try-on
-- Personal stylist recommendations
-- Commercial partnerships
+- [x] **Day 1-2**: ✅ Wardrobe Upload & Auto-Tagging  
+- [x] **Day 2-3**: ✅ Shopping Item Analysis ⭐ **COMPLETED**
+- [ ] **Day 3-5**: 🔜 Basic Outfit Generation
+- [ ] **Day 4**: 🔜 Integration & Polish
+- [ ] **Day 5**: 🔜 Demo Preparation
 
 ---
 
-## 📚 Documentation
-
-- **[Project Specification](docs/fashion_assist_poc_spec.md)**: Detailed technical requirements
-- **[Implementation Guide](docs/implementation_guide.md)**: Step-by-step development instructions  
-- **[Demo Script](docs/demo_script.md)**: Presentation and demo guidelines
-
----
-
-## 🤝 Contributing
-
-This is a school project/POC, but contributions are welcome:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **Fashion-CLIP**: Patrick John Chia et al. for the fashion-specialized CLIP model
-- **FLUX Models**: Black Forest Labs for the outfit generation model
-- **Streamlit**: For the rapid web app development framework
-- **Hugging Face**: For model hosting and transformers library
-
----
-
-## 📞 Contact
-
-Project Link: [https://github.com/yourusername/fashion-assist-poc](https://github.com/yourusername/fashion-assist-poc)
-
-Built with ❤️ in 1 week for [Your School/Course Name]
+**🎉 Feature 2 is live! Start analyzing your shopping finds with AI-powered compatibility scoring!**
