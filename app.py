@@ -320,33 +320,51 @@ def display_image_gallery(results):
     else:  # Default: Confidence Score ↓
         sorted_images = sorted(all_images, key=lambda x: x.get('final_score', 0), reverse=True)
     
-    # Gallery navigation
-    col1, col2, col3 = st.columns([2, 1, 2])
+    # Initialize session state for gallery navigation
+    if "gallery_index" not in st.session_state:
+        st.session_state.gallery_index = 0
     
-    with col2:
-        if len(sorted_images) > 1:
-            current_index = st.slider(
-                "Navigate Gallery",
-                0, len(sorted_images) - 1,
-                0,
-                key="gallery_slider"
-            )
-        else:
-            current_index = 0
+    # Reset index if it's out of bounds (e.g., after sorting)
+    if st.session_state.gallery_index >= len(sorted_images):
+        st.session_state.gallery_index = 0
+    
+    current_index = st.session_state.gallery_index
     
     # Display current image and its analysis
     current_image = sorted_images[current_index]
     
-    # Main display area
+    # Main display area with navigation
     gallery_col1, gallery_col2 = st.columns([1, 1])
     
     with gallery_col1:
-        # Display the current image
-        image_path = current_image.get('saved_path') or current_image.get('path')
-        if image_path and os.path.exists(image_path):
-            st.image(image_path, caption=f"Image {current_index + 1} of {len(sorted_images)}", use_column_width=True)
+        # Image navigation with arrow buttons
+        if len(sorted_images) > 1:
+            nav_col1, nav_col2, nav_col3 = st.columns([1, 6, 1])
+            
+            with nav_col1:
+                if st.button("◀", key="prev_image", help="Previous image") and current_index > 0:
+                    st.session_state.gallery_index = current_index - 1
+                    st.rerun()
+            
+            with nav_col3:
+                if st.button("▶", key="next_image", help="Next image") and current_index < len(sorted_images) - 1:
+                    st.session_state.gallery_index = current_index + 1
+                    st.rerun()
+            
+            with nav_col2:
+                # Display the current image
+                image_path = current_image.get('saved_path') or current_image.get('path')
+                if image_path and os.path.exists(image_path):
+                    st.image(image_path, caption=f"Image {current_index + 1} of {len(sorted_images)}", use_column_width=True)
+                else:
+                    st.error("Image file not found")
         else:
-            st.error("Image file not found")
+            # Single image, no navigation needed
+            image_path = current_image.get('saved_path') or current_image.get('path')
+            if image_path and os.path.exists(image_path):
+                st.image(image_path, caption=f"Image {current_index + 1} of {len(sorted_images)}", use_column_width=True)
+            else:
+                st.error("Image file not found")
         
         # Display confidence score with visual indicator
         final_score = current_image.get('final_score', 0)
@@ -401,35 +419,7 @@ def display_image_gallery(results):
             if llm_validation.get('reason'):
                 st.write(f"**Reasoning:** {llm_validation['reason']}")
     
-    # Thumbnail gallery overview
-    st.divider()
-    st.subheader("🔍 All Images Overview")
-    
-    # Display thumbnails in a grid
-    thumbnail_cols = st.columns(min(len(sorted_images), 5))  # Max 5 columns
-    
-    for i, img in enumerate(sorted_images):
-        col_index = i % 5
-        with thumbnail_cols[col_index]:
-            thumb_path = img.get('saved_path') or img.get('path')
-            if thumb_path and os.path.exists(thumb_path):
-                score = img.get('final_score', 0)
-                
-                # Add border color based on score
-                if score > 0.8:
-                    border_color = "🟢"
-                elif score > 0.6:
-                    border_color = "🟡"
-                else:
-                    border_color = "🔴"
-                    
-                caption = f"{border_color} #{i+1} ({score:.0%})"
-                st.image(thumb_path, caption=caption, width=100)
-                
-                # Button to jump to this image
-                if st.button(f"View #{i+1}", key=f"thumb_btn_{i}"):
-                    st.session_state.gallery_slider = i
-                    st.rerun()
+
 
 
 def display_gallery_statistics(results):
