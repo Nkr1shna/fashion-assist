@@ -65,22 +65,28 @@ class FashionCLIP:
                 image_features = self.model.encode_image(image_input)
                 image_features /= image_features.norm(dim=-1, keepdim=True)
             
-            # Get category
-            category = self._classify_with_labels(image_features, self.categories)
+            # Get category with confidence
+            category, category_confidence = self._classify_with_labels_and_confidence(image_features, self.categories)
             
-            # Get color
+            # Get color with confidence
             color_prompts = [f"a photo of {color} clothing" for color in self.colors]
-            color = self._classify_with_labels(image_features, color_prompts)
+            color, color_confidence = self._classify_with_labels_and_confidence(image_features, color_prompts)
             
-            # Get style
+            # Get style with confidence
             style_prompts = [f"a photo of {style} clothing" for style in self.styles]
-            style = self._classify_with_labels(image_features, style_prompts)
+            style, style_confidence = self._classify_with_labels_and_confidence(image_features, style_prompts)
+            
+            # Calculate overall confidence as average of individual confidences
+            overall_confidence = (category_confidence + color_confidence + style_confidence) / 3.0
             
             return {
                 "category": category.replace("a photo of a ", "").replace("a photo of ", ""),
                 "color": color,
                 "style": style,
-                "confidence": 0.85  # Placeholder confidence score
+                "confidence": float(overall_confidence),  # Real confidence based on similarity scores
+                "category_confidence": float(category_confidence),
+                "color_confidence": float(color_confidence),
+                "style_confidence": float(style_confidence)
             }
             
         except Exception as e:
@@ -89,7 +95,10 @@ class FashionCLIP:
                 "category": "unknown",
                 "color": "unknown", 
                 "style": "unknown",
-                "confidence": 0.0
+                "confidence": 0.0,
+                "category_confidence": 0.0,
+                "color_confidence": 0.0,
+                "style_confidence": 0.0
             }
     
     def _classify_with_labels(self, image_features, labels):
@@ -108,6 +117,33 @@ class FashionCLIP:
                 return labels[best_idx].split()[-2]  # Extract color/style word
             else:
                 return labels[best_idx].replace("a photo of a ", "").replace("a photo of ", "")
+    
+    def _classify_with_labels_and_confidence(self, image_features, labels):
+        """Helper function for zero-shot classification with confidence scores"""
+        text_tokens = self.tokenizer(labels).to(self.device)
+        
+        with torch.no_grad():
+            text_features = self.model.encode_text(text_tokens)
+            text_features /= text_features.norm(dim=-1, keepdim=True)
+            
+            # Calculate similarities
+            similarities = (image_features @ text_features.T).squeeze(0)
+            best_idx = similarities.argmax().item()
+            
+            # Get the confidence as the maximum similarity score
+            # Convert from cosine similarity (-1 to 1) to confidence (0 to 1)
+            confidence = (similarities[best_idx].item() + 1.0) / 2.0
+            
+            # Apply softmax to get more realistic confidence scores
+            softmax_similarities = torch.softmax(similarities * 10, dim=0)  # Scale for sharper probabilities
+            confidence = softmax_similarities[best_idx].item()
+            
+            if "clothing" in labels[best_idx]:
+                label = labels[best_idx].split()[-2]  # Extract color/style word
+            else:
+                label = labels[best_idx].replace("a photo of a ", "").replace("a photo of ", "")
+                
+            return label, confidence
     
     def get_image_embedding(self, image_path):
         """Get image embedding for similarity comparisons"""

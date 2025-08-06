@@ -207,8 +207,18 @@ Response:"""
                     result['overall_match'] = True
                     result['category_match'] = True
                     result['color_match'] = True
-                    result['confidence'] = 0.7
+                    result['confidence'] = 0.6  # Lower confidence for inferred matches
                     result['reason'] = "Inferred positive match from response content"
+                elif 'no' in response_lower or 'not' in response_lower or 'mismatch' in response_lower:
+                    result['overall_match'] = False
+                    result['category_match'] = False  
+                    result['color_match'] = False
+                    result['confidence'] = 0.4  # Lower confidence for inferred non-matches
+                    result['reason'] = "Inferred negative match from response content"
+                else:
+                    # Completely unclear response
+                    result['confidence'] = 0.3  # Very low confidence for unclear responses
+                    result['reason'] = "Unclear LLM response, defaulting to low confidence"
             
         except Exception as e:
             print(f"Error parsing LLM response: {e}")
@@ -235,28 +245,57 @@ Response:"""
             if keyword in title or keyword in description:
                 title_categories.append(keyword)
         
-        # Check category match
+        # Check category match with confidence calculation
         category_match = False
+        category_match_strength = 0.0
+        
         if category_hints:
-            category_match = predicted_category in category_hints
+            if predicted_category in category_hints:
+                category_match = True
+                category_match_strength = 1.0  # Exact match
+            elif any(hint in predicted_category for hint in category_hints):
+                category_match = True
+                category_match_strength = 0.7  # Partial match
         elif title_categories:
-            category_match = predicted_category in title_categories or any(cat in predicted_category for cat in title_categories)
+            if predicted_category in title_categories:
+                category_match = True
+                category_match_strength = 0.9  # Strong match from title
+            elif any(cat in predicted_category for cat in title_categories):
+                category_match = True
+                category_match_strength = 0.6  # Partial match from title
         else:
             category_match = True  # No strong category signal, assume OK
+            category_match_strength = 0.5  # Neutral confidence
         
-        # Color validation
+        # Color validation with confidence
         color_hints = [color.lower() for color in context.get('color_hints', [])]
         color_match = True  # Default to True for colors
+        color_match_strength = 0.5  # Default neutral confidence
         
         if color_hints:
-            # Check if predicted color is compatible with hints
-            color_match = predicted_color in color_hints or any(hint in predicted_color for hint in color_hints)
+            if predicted_color in color_hints:
+                color_match = True
+                color_match_strength = 1.0  # Exact color match
+            elif any(hint in predicted_color for hint in color_hints):
+                color_match = True
+                color_match_strength = 0.8  # Partial color match
+            else:
+                color_match = False
+                color_match_strength = 0.2  # Color mismatch
         
-        # Overall validation
+        # Calculate overall confidence based on match quality
         overall_match = category_match and color_match
-        confidence = 0.8 if overall_match else 0.3
         
-        reason = f"Rule-based: Category {'✓' if category_match else '✗'}, Color {'✓' if color_match else '✗'}"
+        if overall_match:
+            # High confidence if both category and color match well
+            confidence = (category_match_strength + color_match_strength) / 2.0
+            confidence = max(0.6, min(0.95, confidence))  # Clamp between 0.6-0.95
+        else:
+            # Lower confidence for mismatches
+            confidence = (category_match_strength + color_match_strength) / 4.0
+            confidence = max(0.1, min(0.4, confidence))  # Clamp between 0.1-0.4
+        
+        reason = f"Rule-based: Category {'✓' if category_match else '✗'} ({category_match_strength:.1f}), Color {'✓' if color_match else '✗'} ({color_match_strength:.1f})"
         
         return {
             'overall_match': overall_match,
