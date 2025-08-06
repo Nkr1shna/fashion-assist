@@ -1,29 +1,24 @@
 [project]
-name = "fashion-assist-poc"
-version = "0.1.0"
-description = "AI-powered shopping companion proof of concept"
+name = "fashion-assist"
+version = "1.0.0"
+description = "AI-powered fashion analysis and shopping companion"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Fashion Assist Team" }
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "streamlit>=1.25.0",
+    "streamlit>=1.28.0",
     "torch>=2.0.0",
-    "torchvision>=0.15.0", 
-    "transformers>=4.30.0",
-    "diffusers>=0.20.0",
-    "accelerate>=0.20.0",
+    "torchvision>=0.15.0",
+    "transformers>=4.35.0",
     "open-clip-torch>=2.20.0",
-    "Pillow>=9.5.0",
-    "opencv-python>=4.8.0",
+    "pillow>=10.0.0",
     "numpy>=1.24.0",
     "requests>=2.31.0",
     "beautifulsoup4>=4.12.0",
-    "selenium>=4.11.0",
     "scikit-learn>=1.3.0",
-    "pandas>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -31,34 +26,45 @@ dev = [
     "pytest>=7.4.0",
     "black>=23.0.0",
     "flake8>=6.0.0",
+    "mypy>=1.5.0",
 ]
-
-[project.scripts]
-fashion-assist = "app:main"
-
-[project.urls]
-Homepage = "https://github.com/yourusername/fashion-assist-poc"
-Repository = "https://github.com/yourusername/fashion-assist-poc"
-Documentation = "https://github.com/yourusername/fashion-assist-poc/tree/main/docs"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["."]
-exclude = ["data/", "*.md"]
 
 [tool.uv]
 dev-dependencies = [
     "pytest>=7.4.0",
     "black>=23.0.0", 
     "flake8>=6.0.0",
+    "mypy>=1.5.0",
 ]
 
 [tool.black]
 line-length = 88
 target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | data
+)/
+'''
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
