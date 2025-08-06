@@ -132,11 +132,77 @@ def shopping_analysis():
         # Button is always enabled - we'll validate after submission
         form_submitted = st.form_submit_button("🔍 Analyze Item", type="primary")
     
+    # Add clear results button if analysis exists
+    if 'analysis_results' in st.session_state and st.session_state.analysis_results:
+        col1, col2 = st.columns([6, 1])
+        with col2:
+            if st.button("🗑️ Clear", help="Clear current analysis results"):
+                del st.session_state.analysis_results
+                if 'gallery_index' in st.session_state:
+                    del st.session_state.gallery_index
+                st.rerun()
+    
+    # Check if we have existing results in session state (for navigation persistence)
+    if 'analysis_results' in st.session_state and st.session_state.analysis_results:
+        results = st.session_state.analysis_results
+        
+        if results.get('pipeline_success'):
+            st.success("🎉 Analysis Completed Successfully!")
+            
+            # Display image gallery and product info
+            display_image_gallery(results)
+            
+            # Gallery statistics and overview
+            with st.expander("📊 Gallery Statistics & Details"):
+                display_gallery_statistics(results)
+            
+            # Analysis features highlight
+            st.info("**🔍 Analysis Features:**\n"
+                   "✅ AI-generated categories from description\n"
+                   "✅ Enhanced Fashion-CLIP analysis\n"
+                   "✅ Semantic validation with reasoning\n"
+                   "✅ Interactive image gallery with sorting\n"
+                   "✅ All images saved with confidence scores\n"
+                   "✅ Complete JSON results saved")
+            
+            # Show file locations
+            with st.expander("📁 Generated Files"):
+                st.write(f"**Output Directory:** `{results['output_directory']}`")
+                st.write(f"**Total Images:** {len(results.get('all_images', []))}")
+                st.write(f"**Results JSON:** `{results['output_directory']}/pipeline_results.json`")
+            
+            # Compatibility with wardrobe - use first image for compatibility analysis
+            st.divider()
+            st.subheader("🤝 Wardrobe Compatibility")
+            st.info("💡 Use the gallery above to navigate through images. Compatibility is calculated for the currently selected image.")
+            
+            # Get the currently selected image from the gallery
+            all_images = results.get('all_images', [])
+            if all_images:
+                # Get the currently selected image based on gallery navigation
+                current_index = st.session_state.get('gallery_index', 0)
+                if current_index < len(all_images):
+                    current_image_path = all_images[current_index].get('saved_path') or all_images[current_index].get('path')
+                    show_wardrobe_compatibility(current_image_path)
+                else:
+                    # Fallback to first image if index is invalid
+                    first_image_path = all_images[0].get('saved_path') or all_images[0].get('path')
+                    show_wardrobe_compatibility(first_image_path)
+            else:
+                st.warning("No images available for compatibility analysis.")
+        else:
+            st.error(f"❌ Analysis failed: {results.get('error', 'Unknown error')}")
+            st.write("Please try a different URL or check the error details above.")
+    
     # Handle form submission
-    if form_submitted:
+    elif form_submitted:
         if not url.strip():
             st.error("⚠️ Please enter a valid URL before analyzing.")
             return
+        
+        # Clear any existing analysis results when starting new analysis
+        if 'analysis_results' in st.session_state:
+            del st.session_state.analysis_results
         
         # Analysis only starts with valid URL after form submission
         analyzer = load_fashion_analyzer()
@@ -158,6 +224,9 @@ def shopping_analysis():
             
             progress_bar.progress(100)
             status_text.text("✅ Analysis completed!")
+            
+            # Store results in session state for navigation persistence
+            st.session_state.analysis_results = results
             
             if results.get('pipeline_success'):
                 st.success("🎉 Analysis Completed Successfully!")
@@ -192,9 +261,15 @@ def shopping_analysis():
                 # Get the currently selected image from the gallery
                 all_images = results.get('all_images', [])
                 if all_images:
-                    # Use the first image (highest confidence) for compatibility analysis
-                    first_image_path = all_images[0].get('saved_path') or all_images[0].get('path')
-                    show_wardrobe_compatibility(first_image_path)
+                    # Get the currently selected image based on gallery navigation
+                    current_index = st.session_state.get('gallery_index', 0)
+                    if current_index < len(all_images):
+                        current_image_path = all_images[current_index].get('saved_path') or all_images[current_index].get('path')
+                        show_wardrobe_compatibility(current_image_path)
+                    else:
+                        # Fallback to first image if index is invalid
+                        first_image_path = all_images[0].get('saved_path') or all_images[0].get('path')
+                        show_wardrobe_compatibility(first_image_path)
                 else:
                     st.warning("No images available for compatibility analysis.")
                 
