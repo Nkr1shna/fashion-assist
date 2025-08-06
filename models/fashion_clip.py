@@ -6,7 +6,12 @@ from pathlib import Path
 
 class FashionCLIP:
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            self.device = "cuda"
+        elif torch.backends.mps.is_available():
+            self.device = "mps"
+        else:
+            self.device = "cpu"
         print(f"Using device: {self.device}")
         
         # Load Fashion-CLIP model
