@@ -8,38 +8,81 @@ import os
 class SimpleWebScraper:
     def __init__(self):
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"'
         }
     
     def scrape_product(self, url):
         """Scrape basic product info from URL with enhanced context extraction"""
-        try:
-            response = requests.get(url, headers=self.headers, timeout=10)
-            response.raise_for_status()
-            
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Extract basic info
-            title = self._extract_title(soup)
-            price = self._extract_price(soup)
-            images = self._extract_images(soup, url)
-            description = self._extract_description(soup)
-            
-            # Extract additional context from URL and page
-            context = self._extract_context(url, soup, title, description)
-            
-            return {
-                "url": url,
-                "title": title,
-                "price": price,
-                "images": images,
-                "description": description,
-                "context": context
-            }
-            
-        except Exception as e:
-            print(f"Error scraping {url}: {e}")
-            return None
+        # Try multiple approaches for better compatibility
+        approaches = [
+            ("enhanced", self.headers),
+            ("simple", {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'})
+        ]
+        
+        for approach_name, headers in approaches:
+            try:
+                import requests
+                response = requests.get(url, headers=headers, timeout=15)
+                response.raise_for_status()
+                
+                # Handle encoding properly
+                if response.encoding is None:
+                    response.encoding = 'utf-8'
+                
+                soup = BeautifulSoup(response.text, 'html.parser')
+                
+                # Extract basic info
+                title = self._extract_title(soup)
+                price = self._extract_price(soup)
+                images = self._extract_images(soup, url)
+                description = self._extract_description(soup)
+                
+                # Check if we got good data
+                if title != "Unknown Product" or len(images) > 0:
+                    # Extract additional context from URL and page
+                    context = self._extract_context(url, soup, title, description)
+                    
+                    print(f"DEBUG: Successfully scraped {url} using {approach_name} approach")
+                    print(f"  Title: {title}")
+                    print(f"  Images found: {len(images)}")
+                    
+                    return {
+                        "url": url,
+                        "title": title,
+                        "price": price,
+                        "images": images,
+                        "description": description,
+                        "context": context
+                    }
+                else:
+                    print(f"DEBUG: {approach_name} approach failed for {url} - trying next")
+                    continue
+                    
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 403:
+                    print(f"Access denied with {approach_name} approach for {url}: {e}")
+                    continue
+                else:
+                    print(f"HTTP error with {approach_name} approach for {url}: {e}")
+                    continue
+            except Exception as e:
+                print(f"Error with {approach_name} approach for {url}: {e}")
+                continue
+        
+        print(f"ERROR: All approaches failed for {url}")
+        return None
     
     def _extract_context(self, url, soup, title, description):
         """Extract additional context from URL and page content"""
@@ -197,10 +240,26 @@ class SimpleWebScraper:
             '[class*="product"] img',
             '[id*="product"] img',
             
+            # Shopify specific selectors (used by A Kind of Guise, Aime Leon Dore)
+            '.product__media img',
+            '.product-media img', 
+            '.product-gallery-wrapper img',
+            '.product__photo img',
+            '[data-media-id] img',
+            '.slideshow img',
+            '.product-single__photo img',
+            
             # A Kind of Guise specific selectors
             '[class*="media"] img',  # Their media gallery
             '[class*="gallery"] img',  # Gallery images
             '[class*="image"] img',   # Image containers
+            
+            # COS and other modern sites
+            '.pdp-image img',
+            '.product-details-image img',
+            '.product-hero img',
+            '[data-testid*="image"] img',
+            '[data-cy*="image"] img',
             
             # Medium priority - common e-commerce patterns
             '.hero img',
@@ -214,7 +273,13 @@ class SimpleWebScraper:
             
             # Shopify/common platform specific
             '[data-zoom] img',
-            '.featured-image img'
+            '.featured-image img',
+            
+            # Next.js and React common patterns
+            '[class*="Image"] img',
+            '[class*="photo"] img',
+            '[data-src] img',
+            'img[loading="lazy"]'
         ]
         
         # Try priority selectors first
@@ -260,7 +325,21 @@ class SimpleWebScraper:
     
     def _get_image_src(self, img, base_url):
         """Extract and normalize image source URL"""
-        src = img.get('src') or img.get('data-src') or img.get('data-lazy-src') or img.get('data-original')
+        # Try multiple possible source attributes
+        src_attrs = [
+            'src', 'data-src', 'data-lazy-src', 'data-original', 
+            'data-srcset', 'data-zoom-image', 'data-large', 'data-full',
+            'data-image', 'data-lazy', 'srcset'
+        ]
+        
+        src = None
+        for attr in src_attrs:
+            src = img.get(attr)
+            if src:
+                # Handle srcset format (take the first/largest image)
+                if 'srcset' in attr and ',' in src:
+                    src = src.split(',')[0].strip().split(' ')[0]
+                break
         
         if not src:
             return None
