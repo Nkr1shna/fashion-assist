@@ -1,0 +1,39 @@
+# Python Project Rules - UV Only
+
+## Package Management
+- ALWAYS use `uv` for package management, never use `pip`, `pipenv`, `poetry`, or `conda`
+- Use `uv add <package>` to install packages
+- Use `uv remove <package>` to uninstall packages
+- Use `uv sync` to install dependencies from pyproject.toml
+- Use `uv lock` to update the lock file
+
+## Virtual Environment
+- ALWAYS use the .venv created by uv
+- Before running any Python commands, ensure the virtual environment is activated
+- Use `uv venv` to create virtual environment if it doesn't exist
+- Activate with `source .venv/bin/activate` (Linux/Mac) or `.venv\Scripts\activate` (Windows)
+- Use `uv run <command>` to run commands in the virtual environment without manual activation
+
+## Python Execution
+- Use `uv run python <script.py>` instead of `python <script.py>`
+- Use `uv run pytest` instead of `pytest`
+- Use `uv run <any-command>` for any Python-related commands
+
+## Project Structure
+- Keep pyproject.toml as the main configuration file
+- Use uv.lock for dependency locking
+- Include .venv/ in .gitignore
+
+## Common Commands Reminders
+- Initialize project: `uv init`
+- Add dependency: `uv add requests`
+- Add dev dependency: `uv add --dev pytest`
+- Install all dependencies: `uv sync`
+- Run Python: `uv run python script.py`
+- Run tests: `uv run pytest`
+
+## Forbidden Commands
+- Never suggest `pip install`
+- Never suggest `python -m pip`
+- Never suggest running python without uv when in project context
+- Never suggest global Python interpreter usage
