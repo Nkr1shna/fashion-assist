@@ -132,11 +132,15 @@ class FashionCLIP:
             
             # Get the confidence as the maximum similarity score
             # Convert from cosine similarity (-1 to 1) to confidence (0 to 1)
-            confidence = (similarities[best_idx].item() + 1.0) / 2.0
+            raw_confidence = (similarities[best_idx].item() + 1.0) / 2.0
             
             # Apply softmax to get more realistic confidence scores
-            softmax_similarities = torch.softmax(similarities * 10, dim=0)  # Scale for sharper probabilities
-            confidence = softmax_similarities[best_idx].item()
+            softmax_similarities = torch.softmax(similarities * 8, dim=0)  # Reduced scaling for less aggressive scores
+            softmax_confidence = softmax_similarities[best_idx].item()
+            
+            # Use a weighted combination of raw and softmax confidence
+            # This gives more balanced confidence scores
+            confidence = (raw_confidence * 0.6) + (softmax_confidence * 0.4)
             
             if "clothing" in labels[best_idx]:
                 label = labels[best_idx].split()[-2]  # Extract color/style word
