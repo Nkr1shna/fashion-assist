@@ -3,6 +3,7 @@
 ## Python Package Management Rule
 
 ### Rule: Always Use `uv add` Instead of `pip install`
+### Rule: Always use .venv in the project instead of $HOME/.local/bin/env
 
 **🚫 DON'T USE:**
 ```bash
